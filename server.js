@@ -60,15 +60,15 @@ app.post('/categories', authenticateToken, validate([
 ]), (req, res) => {
     const { name, slug, media_id } = req.body;
     connection.query('INSERT INTO categories (name, slug, media_id) VALUES (?, ?, ?)', [name, slug, media_id], (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.status(201).send({ id: results.insertId, name, slug, media_id });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(201).json({ status: 'success', message: 'Category created', data: { id: results.insertId, name, slug, media_id } });
     });
 });
 
 app.get('/categories', (req, res) => {
     connection.query('SELECT * FROM categories', (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.send(results);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Categories retrieved', data: results });
     });
 });
 
@@ -77,9 +77,9 @@ app.get('/categories/:id', validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM categories WHERE id = ?', [id], (err, results) => {
-        if (err) return res.status(500).send(err);
-        if (results.length === 0) return res.status(404).send('Category not found');
-        res.send(results[0]);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        if (results.length === 0) return res.status(404).json({ status: 'error', message: 'Category not found', data: null });
+        res.json({ status: 'success', message: 'Category retrieved', data: results[0] });
     });
 });
 
@@ -92,8 +92,8 @@ app.put('/categories/:id', authenticateToken, validate([
     const { id } = req.params;
     const { name, slug, media_id } = req.body;
     connection.query('UPDATE categories SET name = ?, slug = ?, media_id = ? WHERE id = ?', [name, slug, media_id, id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.send({ id, name, slug, media_id });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Category updated', data: { id, name, slug, media_id } });
     });
 });
 
@@ -102,8 +102,8 @@ app.delete('/categories/:id', authenticateToken, validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM categories WHERE id = ?', [id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.status(204).send();
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(204).json({ status: 'success', message: 'Category deleted', data: null });
     });
 });
 
@@ -115,15 +115,15 @@ app.post('/chatbot_messages', authenticateToken, validate([
 ]), (req, res) => {
     const { user_id, message, response } = req.body;
     connection.query('INSERT INTO chatbot_messages (user_id, message, response) VALUES (?, ?, ?)', [user_id, message, response], (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.status(201).send({ id: results.insertId, user_id, message, response });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(201).json({ status: 'success', message: 'Chatbot message created', data: { id: results.insertId, user_id, message, response } });
     });
 });
 
 app.get('/chatbot_messages', authenticateToken, (req, res) => {
     connection.query('SELECT * FROM chatbot_messages', (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.send(results);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Chatbot messages retrieved', data: results });
     });
 });
 
@@ -132,9 +132,9 @@ app.get('/chatbot_messages/:id', authenticateToken, validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM chatbot_messages WHERE id = ?', [id], (err, results) => {
-        if (err) return res.status(500).send(err);
-        if (results.length === 0) return res.status(404).send('Chatbot message not found');
-        res.send(results[0]);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        if (results.length === 0) return res.status(404).json({ status: 'error', message: 'Chatbot message not found', data: null });
+        res.json({ status: 'success', message: 'Chatbot message retrieved', data: results[0] });
     });
 });
 
@@ -147,8 +147,8 @@ app.put('/chatbot_messages/:id', authenticateToken, validate([
     const { id } = req.params;
     const { user_id, message, response } = req.body;
     connection.query('UPDATE chatbot_messages SET user_id = ?, message = ?, response = ? WHERE id = ?', [user_id, message, response, id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.send({ id, user_id, message, response });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Chatbot message updated', data: { id, user_id, message, response } });
     });
 });
 
@@ -157,8 +157,8 @@ app.delete('/chatbot_messages/:id', authenticateToken, validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM chatbot_messages WHERE id = ?', [id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.status(204).send();
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(204).json({ status: 'success', message: 'Chatbot message deleted', data: null });
     });
 });
 
@@ -170,15 +170,15 @@ app.post('/cities', authenticateToken, validate([
 ]), (req, res) => {
     const { name, postal_code, country } = req.body;
     connection.query('INSERT INTO cities (name, postal_code, country) VALUES (?, ?, ?)', [name, postal_code, country], (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.status(201).send({ id: results.insertId, name, postal_code, country });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(201).json({ status: 'success', message: 'City created', data: { id: results.insertId, name, postal_code, country } });
     });
 });
 
 app.get('/cities', (req, res) => {
     connection.query('SELECT * FROM cities', (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.send(results);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Cities retrieved', data: results });
     });
 });
 
@@ -187,9 +187,9 @@ app.get('/cities/:id', validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM cities WHERE id = ?', [id], (err, results) => {
-        if (err) return res.status(500).send(err);
-        if (results.length === 0) return res.status(404).send('City not found');
-        res.send(results[0]);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        if (results.length === 0) return res.status(404).json({ status: 'error', message: 'City not found', data: null });
+        res.json({ status: 'success', message: 'City retrieved', data: results[0] });
     });
 });
 
@@ -202,8 +202,8 @@ app.put('/cities/:id', authenticateToken, validate([
     const { id } = req.params;
     const { name, postal_code, country } = req.body;
     connection.query('UPDATE cities SET name = ?, postal_code = ?, country = ? WHERE id = ?', [name, postal_code, country, id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.send({ id, name, postal_code, country });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'City updated', data: { id, name, postal_code, country } });
     });
 });
 
@@ -212,8 +212,8 @@ app.delete('/cities/:id', authenticateToken, validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM cities WHERE id = ?', [id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.status(204).send();
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(204).json({ status: 'success', message: 'City deleted', data: null });
     });
 });
 
@@ -225,15 +225,15 @@ app.post('/comments', authenticateToken, validate([
 ]), (req, res) => {
     const { report_id, user_id, content } = req.body;
     connection.query('INSERT INTO comments (report_id, user_id, content) VALUES (?, ?, ?)', [report_id, user_id, content], (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.status(201).send({ id: results.insertId, report_id, user_id, content });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(201).json({ status: 'success', message: 'Comment created', data: { id: results.insertId, report_id, user_id, content } });
     });
 });
 
 app.get('/comments', (req, res) => {
     connection.query('SELECT * FROM comments', (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.send(results);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Comments retrieved', data: results });
     });
 });
 
@@ -242,9 +242,9 @@ app.get('/comments/:id', validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM comments WHERE id = ?', [id], (err, results) => {
-        if (err) return res.status(500).send(err);
-        if (results.length === 0) return res.status(404).send('Comment not found');
-        res.send(results[0]);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        if (results.length === 0) return res.status(404).json({ status: 'error', message: 'Comment not found', data: null });
+        res.json({ status: 'success', message: 'Comment retrieved', data: results[0] });
     });
 });
 
@@ -257,8 +257,8 @@ app.put('/comments/:id', authenticateToken, validate([
     const { id } = req.params;
     const { report_id, user_id, content } = req.body;
     connection.query('UPDATE comments SET report_id = ?, user_id = ?, content = ? WHERE id = ?', [report_id, user_id, content, id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.send({ id, report_id, user_id, content });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Comment updated', data: { id, report_id, user_id, content } });
     });
 });
 
@@ -267,8 +267,8 @@ app.delete('/comments/:id', authenticateToken, validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM comments WHERE id = ?', [id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.status(204).send();
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(204).json({ status: 'success', message: 'Comment deleted', data: null });
     });
 });
 
@@ -279,15 +279,15 @@ app.post('/data_exports', authenticateToken, validate([
 ]), (req, res) => {
     const { user_id, file_path } = req.body;
     connection.query('INSERT INTO data_exports (user_id, file_path) VALUES (?, ?)', [user_id, file_path], (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.status(201).send({ id: results.insertId, user_id, file_path });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(201).json({ status: 'success', message: 'Data export created', data: { id: results.insertId, user_id, file_path } });
     });
 });
 
 app.get('/data_exports', (req, res) => {
     connection.query('SELECT * FROM data_exports', (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.send(results);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Data exports retrieved', data: results });
     });
 });
 
@@ -296,9 +296,9 @@ app.get('/data_exports/:id', validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM data_exports WHERE id = ?', [id], (err, results) => {
-        if (err) return res.status(500).send(err);
-        if (results.length === 0) return res.status(404).send('Data export not found');
-        res.send(results[0]);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        if (results.length === 0) return res.status(404).json({ status: 'error', message: 'Data export not found', data: null });
+        res.json({ status: 'success', message: 'Data export retrieved', data: results[0] });
     });
 });
 
@@ -310,8 +310,8 @@ app.put('/data_exports/:id', authenticateToken, validate([
     const { id } = req.params;
     const { user_id, file_path } = req.body;
     connection.query('UPDATE data_exports SET user_id = ?, file_path = ? WHERE id = ?', [user_id, file_path, id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.send({ id, user_id, file_path });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Data export updated', data: { id, user_id, file_path } });
     });
 });
 
@@ -320,8 +320,8 @@ app.delete('/data_exports/:id', authenticateToken, validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM data_exports WHERE id = ?', [id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.status(204).send();
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(204).json({ status: 'success', message: 'Data export deleted', data: null });
     });
 });
 
@@ -334,15 +334,15 @@ app.post('/deleted_reasons', authenticateToken, validate([
 ]), (req, res) => {
     const { name, slug, long_name, type } = req.body;
     connection.query('INSERT INTO deleted_reasons (name, slug, long_name, type) VALUES (?, ?, ?, ?)', [name, slug, long_name, type], (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.status(201).send({ id: results.insertId, name, slug, long_name, type });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(201).json({ status: 'success', message: 'Deleted reason created', data: { id: results.insertId, name, slug, long_name, type } });
     });
 });
 
 app.get('/deleted_reasons', (req, res) => {
     connection.query('SELECT * FROM deleted_reasons', (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.send(results);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Deleted reasons retrieved', data: results });
     });
 });
 
@@ -351,9 +351,9 @@ app.get('/deleted_reasons/:id', validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM deleted_reasons WHERE id = ?', [id], (err, results) => {
-        if (err) return res.status(500).send(err);
-        if (results.length === 0) return res.status(404).send('Deleted reason not found');
-        res.send(results[0]);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        if (results.length === 0) return res.status(404).json({ status: 'error', message: 'Deleted reason not found', data: null });
+        res.json({ status: 'success', message: 'Deleted reason retrieved', data: results[0] });
     });
 });
 
@@ -367,8 +367,8 @@ app.put('/deleted_reasons/:id', authenticateToken, validate([
     const { id } = req.params;
     const { name, slug, long_name, type } = req.body;
     connection.query('UPDATE deleted_reasons SET name = ?, slug = ?, long_name = ?, type = ? WHERE id = ?', [name, slug, long_name, type, id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.send({ id, name, slug, long_name, type });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Deleted reason updated', data: { id, name, slug, long_name, type } });
     });
 });
 
@@ -377,8 +377,8 @@ app.delete('/deleted_reasons/:id', authenticateToken, validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM deleted_reasons WHERE id = ?', [id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.status(204).send();
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(204).json({ status: 'success', message: 'Deleted reason deleted', data: null });
     });
 });
 
@@ -391,15 +391,15 @@ app.post('/delete_requests', authenticateToken, validate([
 ]), (req, res) => {
     const { user_id, reason, status, deleted_reason_id } = req.body;
     connection.query('INSERT INTO delete_requests (user_id, reason, status, deleted_reason_id) VALUES (?, ?, ?, ?)', [user_id, reason, status, deleted_reason_id], (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.status(201).send({ id: results.insertId, user_id, reason, status, deleted_reason_id });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(201).json({ status: 'success', message: 'Delete request created', data: { id: results.insertId, user_id, reason, status, deleted_reason_id } });
     });
 });
 
 app.get('/delete_requests', (req, res) => {
     connection.query('SELECT * FROM delete_requests', (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.send(results);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Delete requests retrieved', data: results });
     });
 });
 
@@ -408,9 +408,9 @@ app.get('/delete_requests/:id', validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM delete_requests WHERE id = ?', [id], (err, results) => {
-        if (err) return res.status(500).send(err);
-        if (results.length === 0) return res.status(404).send('Delete request not found');
-        res.send(results[0]);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        if (results.length === 0) return res.status(404).json({ status: 'error', message: 'Delete request not found', data: null });
+        res.json({ status: 'success', message: 'Delete request retrieved', data: results[0] });
     });
 });
 
@@ -424,8 +424,8 @@ app.put('/delete_requests/:id', authenticateToken, validate([
     const { id } = req.params;
     const { user_id, reason, status, deleted_reason_id } = req.body;
     connection.query('UPDATE delete_requests SET user_id = ?, reason = ?, status = ?, deleted_reason_id = ? WHERE id = ?', [user_id, reason, status, deleted_reason_id, id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.send({ id, user_id, reason, status, deleted_reason_id });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Delete request updated', data: { id, user_id, reason, status, deleted_reason_id } });
     });
 });
 
@@ -434,8 +434,8 @@ app.delete('/delete_requests/:id', authenticateToken, validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM delete_requests WHERE id = ?', [id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.status(204).send();
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(204).json({ status: 'success', message: 'Delete request deleted', data: null });
     });
 });
 
@@ -446,15 +446,15 @@ app.post('/evidence', authenticateToken, upload.single('file'), validate([
     const { report_id } = req.body;
     const file_path = req.file.path;
     connection.query('INSERT INTO evidence (report_id, file_path) VALUES (?, ?)', [report_id, file_path], (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.status(201).send({ id: results.insertId, report_id, file_path });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(201).json({ status: 'success', message: 'Evidence created', data: { id: results.insertId, report_id, file_path } });
     });
 });
 
 app.get('/evidence', (req, res) => {
     connection.query('SELECT * FROM evidence', (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.send(results);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Evidence retrieved', data: results });
     });
 });
 
@@ -463,9 +463,9 @@ app.get('/evidence/:id', validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM evidence WHERE id = ?', [id], (err, results) => {
-        if (err) return res.status(500).send(err);
-        if (results.length === 0) return res.status(404).send('Evidence not found');
-        res.send(results[0]);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        if (results.length === 0) return res.status(404).json({ status: 'error', message: 'Evidence not found', data: null });
+        res.json({ status: 'success', message: 'Evidence retrieved', data: results[0] });
     });
 });
 
@@ -477,8 +477,8 @@ app.put('/evidence/:id', authenticateToken, upload.single('file'), validate([
     const { report_id } = req.body;
     const file_path = req.file.path;
     connection.query('UPDATE evidence SET report_id = ?, file_path = ? WHERE id = ?', [report_id, file_path, id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.send({ id, report_id, file_path });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Evidence updated', data: { id, report_id, file_path } });
     });
 });
 
@@ -487,8 +487,8 @@ app.delete('/evidence/:id', authenticateToken, validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM evidence WHERE id = ?', [id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.status(204).send();
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(204).json({ status: 'success', message: 'Evidence deleted', data: null });
     });
 });
 
@@ -501,15 +501,15 @@ app.post('/invoices', authenticateToken, upload.single('file'), validate([
     const { payment_id, invoice_number, media_id } = req.body;
     const file_path = req.file.path;
     connection.query('INSERT INTO invoices (payment_id, invoice_number, file_path, media_id) VALUES (?, ?, ?, ?)', [payment_id, invoice_number, file_path, media_id], (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.status(201).send({ id: results.insertId, payment_id, invoice_number, file_path, media_id });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(201).json({ status: 'success', message: 'Invoice created', data: { id: results.insertId, payment_id, invoice_number, file_path, media_id } });
     });
 });
 
 app.get('/invoices', (req, res) => {
     connection.query('SELECT * FROM invoices', (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.send(results);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Invoices retrieved', data: results });
     });
 });
 
@@ -518,9 +518,9 @@ app.get('/invoices/:id', validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM invoices WHERE id = ?', [id], (err, results) => {
-        if (err) return res.status(500).send(err);
-        if (results.length === 0) return res.status(404).send('Invoice not found');
-        res.send(results[0]);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        if (results.length === 0) return res.status(404).json({ status: 'error', message: 'Invoice not found', data: null });
+        res.json({ status: 'success', message: 'Invoice retrieved', data: results[0] });
     });
 });
 
@@ -534,8 +534,8 @@ app.put('/invoices/:id', authenticateToken, upload.single('file'), validate([
     const { payment_id, invoice_number, media_id } = req.body;
     const file_path = req.file.path;
     connection.query('UPDATE invoices SET payment_id = ?, invoice_number = ?, file_path = ?, media_id = ? WHERE id = ?', [payment_id, invoice_number, file_path, media_id, id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.send({ id, payment_id, invoice_number, file_path, media_id });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Invoice updated', data: { id, payment_id, invoice_number, file_path, media_id } });
     });
 });
 
@@ -544,8 +544,8 @@ app.delete('/invoices/:id', authenticateToken, validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM invoices WHERE id = ?', [id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.status(204).send();
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(204).json({ status: 'success', message: 'Invoice deleted', data: null });
     });
 });
 
@@ -557,15 +557,15 @@ app.post('/login_history', authenticateToken, validate([
 ]), (req, res) => {
     const { user_id, ip_address, user_agent } = req.body;
     connection.query('INSERT INTO login_history (user_id, ip_address, user_agent) VALUES (?, ?, ?)', [user_id, ip_address, user_agent], (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.status(201).send({ id: results.insertId, user_id, ip_address, user_agent });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(201).json({ status: 'success', message: 'Login history created', data: { id: results.insertId, user_id, ip_address, user_agent } });
     });
 });
 
 app.get('/login_history', (req, res) => {
     connection.query('SELECT * FROM login_history', (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.send(results);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Login history retrieved', data: results });
     });
 });
 
@@ -574,9 +574,9 @@ app.get('/login_history/:id', validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM login_history WHERE id = ?', [id], (err, results) => {
-        if (err) return res.status(500).send(err);
-        if (results.length === 0) return res.status(404).send('Login history not found');
-        res.send(results[0]);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        if (results.length === 0) return res.status(404).json({ status: 'error', message: 'Login history not found', data: null });
+        res.json({ status: 'success', message: 'Login history retrieved', data: results[0] });
     });
 });
 
@@ -589,8 +589,8 @@ app.put('/login_history/:id', authenticateToken, validate([
     const { id } = req.params;
     const { user_id, ip_address, user_agent } = req.body;
     connection.query('UPDATE login_history SET user_id = ?, ip_address = ?, user_agent = ? WHERE id = ?', [user_id, ip_address, user_agent, id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.send({ id, user_id, ip_address, user_agent });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Login history updated', data: { id, user_id, ip_address, user_agent } });
     });
 });
 
@@ -599,8 +599,8 @@ app.delete('/login_history/:id', authenticateToken, validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM login_history WHERE id = ?', [id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.status(204).send();
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(204).json({ status: 'success', message: 'Login history deleted', data: null });
     });
 });
 
@@ -613,15 +613,15 @@ app.post('/notifications', authenticateToken, validate([
 ]), (req, res) => {
     const { user_id, title, message, read_status } = req.body;
     connection.query('INSERT INTO notifications (user_id, title, message, read_status) VALUES (?, ?, ?, ?)', [user_id, title, message, read_status], (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.status(201).send({ id: results.insertId, user_id, title, message, read_status });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(201).json({ status: 'success', message: 'Notification created', data: { id: results.insertId, user_id, title, message, read_status } });
     });
 });
 
 app.get('/notifications', (req, res) => {
     connection.query('SELECT * FROM notifications', (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.send(results);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Notifications retrieved', data: results });
     });
 });
 
@@ -630,9 +630,9 @@ app.get('/notifications/:id', validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM notifications WHERE id = ?', [id], (err, results) => {
-        if (err) return res.status(500).send(err);
-        if (results.length === 0) return res.status(404).send('Notification not found');
-        res.send(results[0]);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        if (results.length === 0) return res.status(404).json({ status: 'error', message: 'Notification not found', data: null });
+        res.json({ status: 'success', message: 'Notification retrieved', data: results[0] });
     });
 });
 
@@ -646,8 +646,8 @@ app.put('/notifications/:id', authenticateToken, validate([
     const { id } = req.params;
     const { user_id, title, message, read_status } = req.body;
     connection.query('UPDATE notifications SET user_id = ?, title = ?, message = ?, read_status = ? WHERE id = ?', [user_id, title, message, read_status, id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.send({ id, user_id, title, message, read_status });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Notification updated', data: { id, user_id, title, message, read_status } });
     });
 });
 
@@ -656,8 +656,8 @@ app.delete('/notifications/:id', authenticateToken, validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM notifications WHERE id = ?', [id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.status(204).send();
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(204).json({ status: 'success', message: 'Notification deleted', data: null });
     });
 });
 
@@ -668,15 +668,15 @@ app.post('/notification_templates', authenticateToken, validate([
 ]), (req, res) => {
     const { name, content } = req.body;
     connection.query('INSERT INTO notification_templates (name, content) VALUES (?, ?)', [name, content], (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.status(201).send({ id: results.insertId, name, content });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(201).json({ status: 'success', message: 'Notification template created', data: { id: results.insertId, name, content } });
     });
 });
 
 app.get('/notification_templates', (req, res) => {
     connection.query('SELECT * FROM notification_templates', (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.send(results);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Notification templates retrieved', data: results });
     });
 });
 
@@ -685,9 +685,9 @@ app.get('/notification_templates/:id', validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM notification_templates WHERE id = ?', [id], (err, results) => {
-        if (err) return res.status(500).send(err);
-        if (results.length === 0) return res.status(404).send('Notification template not found');
-        res.send(results[0]);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        if (results.length === 0) return res.status(404).json({ status: 'error', message: 'Notification template not found', data: null });
+        res.json({ status: 'success', message: 'Notification template retrieved', data: results[0] });
     });
 });
 
@@ -699,8 +699,8 @@ app.put('/notification_templates/:id', authenticateToken, validate([
     const { id } = req.params;
     const { name, content } = req.body;
     connection.query('UPDATE notification_templates SET name = ?, content = ? WHERE id = ?', [name, content, id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.send({ id, name, content });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Notification template updated', data: { id, name, content } });
     });
 });
 
@@ -709,8 +709,8 @@ app.delete('/notification_templates/:id', authenticateToken, validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM notification_templates WHERE id = ?', [id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.status(204).send();
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(204).json({ status: 'success', message: 'Notification template deleted', data: null });
     });
 });
 
@@ -724,15 +724,15 @@ app.post('/payments', authenticateToken, validate([
 ]), (req, res) => {
     const { user_id, amount, status } = req.body;
     connection.query('INSERT INTO payments (user_id, amount, status) VALUES (?, ?, ?)', [user_id, amount, status], (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.status(201).send({ id: results.insertId, user_id, amount, status });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(201).json({ status: 'success', message: 'Payment created', data: { id: results.insertId, user_id, amount, status } });
     });
 });
 
 app.get('/payments', (req, res) => {
     connection.query('SELECT * FROM payments', (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.send(results);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Payments retrieved', data: results });
     });
 });
 
@@ -741,9 +741,9 @@ app.get('/payments/:id', validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM payments WHERE id = ?', [id], (err, results) => {
-        if (err) return res.status(500).send(err);
-        if (results.length === 0) return res.status(404).send('Payment not found');
-        res.send(results[0]);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        if (results.length === 0) return res.status(404).json({ status: 'error', message: 'Payment not found', data: null });
+        res.json({ status: 'success', message: 'Payment retrieved', data: results[0] });
     });
 });
 
@@ -758,8 +758,8 @@ app.put('/payments/:id', authenticateToken, validate([
     const { id } = req.params;
     const { user_id, amount, status } = req.body;
     connection.query('UPDATE payments SET user_id = ?, amount = ?, status = ? WHERE id = ?', [user_id, amount, status, id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.send({ id, user_id, amount, status });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Payment updated', data: { id, user_id, amount, status } });
     });
 });
 
@@ -768,8 +768,8 @@ app.delete('/payments/:id', authenticateToken, validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM payments WHERE id = ?', [id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.status(204).send();
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(204).json({ status: 'success', message: 'Payment deleted', data: null });
     });
 });
 
@@ -783,15 +783,15 @@ app.post('/permissions', authenticateToken, validate([
 ]), (req, res) => {
     const { name, description } = req.body;
     connection.query('INSERT INTO permissions (name, description) VALUES (?, ?)', [name, description], (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.status(201).send({ id: results.insertId, name, description });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(201).json({ status: 'success', message: 'Permission created', data: { id: results.insertId, name, description } });
     });
 });
 
 app.get('/permissions', (req, res) => {
     connection.query('SELECT * FROM permissions', (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.send(results);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Permissions retrieved', data: results });
     });
 });
 
@@ -800,9 +800,9 @@ app.get('/permissions/:id', validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM permissions WHERE id = ?', [id], (err, results) => {
-        if (err) return res.status(500).send(err);
-        if (results.length === 0) return res.status(404).send('Permission not found');
-        res.send(results[0]);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        if (results.length === 0) return res.status(404).json({ status: 'error', message: 'Permission not found', data: null });
+        res.json({ status: 'success', message: 'Permission retrieved', data: results[0] });
     });
 });
 
@@ -817,8 +817,8 @@ app.put('/permissions/:id', authenticateToken, validate([
     const { id } = req.params;
     const { name, description } = req.body;
     connection.query('UPDATE permissions SET name = ?, description = ? WHERE id = ?', [name, description, id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.send({ id, name, description });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Permission updated', data: { id, name, description } });
     });
 });
 
@@ -827,8 +827,8 @@ app.delete('/permissions/:id', authenticateToken, validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM permissions WHERE id = ?', [id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.status(204).send();
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(204).json({ status: 'success', message: 'Permission deleted', data: null });
     });
 });
 
@@ -840,15 +840,15 @@ app.post('/plans', authenticateToken, validate([
 ]), (req, res) => {
     const { name, description, price } = req.body;
     connection.query('INSERT INTO plans (name, description, price) VALUES (?, ?, ?)', [name, description, price], (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.status(201).send({ id: results.insertId, name, description, price });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(201).json({ status: 'success', message: 'Plan created', data: { id: results.insertId, name, description, price } });
     });
 });
 
 app.get('/plans', (req, res) => {
     connection.query('SELECT * FROM plans', (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.send(results);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Plans retrieved', data: results });
     });
 });
 
@@ -857,9 +857,9 @@ app.get('/plans/:id', validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM plans WHERE id = ?', [id], (err, results) => {
-        if (err) return res.status(500).send(err);
-        if (results.length === 0) return res.status(404).send('Plan not found');
-        res.send(results[0]);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        if (results.length === 0) return res.status(404).json({ status: 'error', message: 'Plan not found', data: null });
+        res.json({ status: 'success', message: 'Plan retrieved', data: results[0] });
     });
 });
 
@@ -872,8 +872,8 @@ app.put('/plans/:id', authenticateToken, validate([
     const { id } = req.params;
     const { name, description, price } = req.body;
     connection.query('UPDATE plans SET name = ?, description = ?, price = ? WHERE id = ?', [name, description, price, id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.send({ id, name, description, price });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Plan updated', data: { id, name, description, price } });
     });
 });
 
@@ -882,8 +882,8 @@ app.delete('/plans/:id', authenticateToken, validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM plans WHERE id = ?', [id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.status(204).send();
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(204).json({ status: 'success', message: 'Plan deleted', data: null });
     });
 });
 
@@ -893,15 +893,15 @@ app.post('/media', authenticateToken, upload.single('file'), (req, res) => {
     const filePath = file.path;
     const fileType = file.mimetype;
     connection.query('INSERT INTO media (file_path, file_type) VALUES (?, ?)', [filePath, fileType], (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.status(201).send({ id: results.insertId, file_path: filePath, file_type: fileType });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(201).json({ status: 'success', message: 'Media created', data: { id: results.insertId, file_path: filePath, file_type: fileType } });
     });
 });
 
 app.get('/media', (req, res) => {
     connection.query('SELECT * FROM media', (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.send(results);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Media retrieved', data: results });
     });
 });
 
@@ -910,9 +910,9 @@ app.get('/media/:id', validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM media WHERE id = ?', [id], (err, results) => {
-        if (err) return res.status(500).send(err);
-        if (results.length === 0) return res.status(404).send('Media not found');
-        res.send(results[0]);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        if (results.length === 0) return res.status(404).json({ status: 'error', message: 'Media not found', data: null });
+        res.json({ status: 'success', message: 'Media retrieved', data: results[0] });
     });
 });
 
@@ -924,8 +924,8 @@ app.put('/media/:id', authenticateToken, validate([
     const { id } = req.params;
     const { file_path, file_type } = req.body;
     connection.query('UPDATE media SET file_path = ?, file_type = ? WHERE id = ?', [file_path, file_type, id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.send({ id, file_path, file_type });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Media updated', data: { id, file_path, file_type } });
     });
 });
 
@@ -934,8 +934,8 @@ app.delete('/media/:id', authenticateToken, validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM media WHERE id = ?', [id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.status(204).send();
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(204).json({ status: 'success', message: 'Media deleted', data: null });
     });
 });
 
@@ -952,8 +952,8 @@ app.post('/reports', authenticateToken, upload.single('file'), validate([
     const { user_id, title, description, category_id, city_id, status, media_id } = req.body;
     const file_path = req.file.path;
     connection.query('INSERT INTO reports (user_id, title, description, category_id, city_id, status, media_id, file_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [user_id, title, description, category_id, city_id, status, media_id, file_path], (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.status(201).send({ id: results.insertId, user_id, title, description, category_id, city_id, status, media_id, file_path });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(201).json({ status: 'success', message: 'Report created', data: { id: results.insertId, user_id, title, description, category_id, city_id, status, media_id, file_path } });
     });
 });
 
@@ -971,15 +971,15 @@ app.put('/reports/:id', authenticateToken, upload.single('file'), validate([
     const { user_id, title, description, category_id, city_id, status, media_id } = req.body;
     const file_path = req.file.path;
     connection.query('UPDATE reports SET user_id = ?, title = ?, description = ?, category_id = ?, city_id = ?, status = ?, media_id = ?, file_path = ? WHERE id = ?', [user_id, title, description, category_id, city_id, status, media_id, file_path, id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.send({ id, user_id, title, description, category_id, city_id, status, media_id, file_path });
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Report updated', data: { id, user_id, title, description, category_id, city_id, status, media_id, file_path } });
     });
 });
 
 app.get('/reports', (req, res) => {
     connection.query('SELECT * FROM reports', (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.send(results);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Reports retrieved', data: results });
     });
 });
 
@@ -988,9 +988,9 @@ app.get('/reports/:id', validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM reports WHERE id = ?', [id], (err, results) => {
-        if (err) return res.status(500).send(err);
-        if (results.length === 0) return res.status(404).send('Report not found');
-        res.send(results[0]);
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        if (results.length === 0) return res.status(404).json({ status: 'error', message: 'Report not found', data: null });
+        res.json({ status: 'success', message: 'Report retrieved', data: results[0] });
     });
 });
 
@@ -999,11 +999,16 @@ app.delete('/reports/:id', authenticateToken, validate([
 ]), (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM reports WHERE id = ?', [id], (err) => {
-        if (err) return res.status(500).send(err);
-        res.status(204).send();
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(204).json({ status: 'success', message: 'Report deleted', data: null });
     });
 });
 
+// Error handling middleware
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({ status: 'error', message: 'Internal Server Error', data: null });
+});
 
 // Start the server
 const port = 3000;
