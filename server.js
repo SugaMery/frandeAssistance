@@ -52,12 +52,47 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+// Register endpoint
+app.post('/register', (req, res) => {
+    const { username, email, password, first_name, last_name, role_id, city, postal_code, address, phone_number } = req.body;
+
+    // Check if all required fields are present
+    if (!username || !email || !password || !first_name || !last_name || !role_id || !city || !postal_code || !address || !phone_number) {
+        return res.status(400).json({ status: 'error', message: 'All fields are required', data: null });
+    }
+
+    // Check if role_id exists
+    connection.query('SELECT * FROM roles WHERE id = ?', [role_id], (err, results) => {
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        if (results.length === 0) return res.status(400).json({ status: 'error', message: 'Invalid role_id', data: null });
+
+        const hashedPassword = bcrypt.hashSync(password, 10);
+        connection.query('INSERT INTO users (uuid, username, email, password, first_name, last_name, role_id, city, postal_code, address, phone_number) VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [username, email, hashedPassword, first_name, last_name, role_id, city, postal_code, address, phone_number], (err, results) => {
+            if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+            res.status(201).json({ status: 'success', message: 'User registered', data: { id: results.insertId, username, email, first_name, last_name, city, postal_code, address, phone_number } });
+        });
+    });
+});
+
+// Login endpoint
+app.post('/login', (req, res) => {
+    const { email, password } = req.body;
+    connection.query('SELECT * FROM users WHERE email = ?', [email], (err, results) => {
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        if (results.length === 0) return res.status(404).json({ status: 'error', message: 'User not found', data: null });
+
+        const user = results[0];
+        if (!bcrypt.compareSync(password, user.password)) {
+            return res.status(401).json({ status: 'error', message: 'Invalid credentials', data: null });
+        }
+
+        const token = jwt.sign({ id: user.id, role: user.role_id }, 'your_jwt_secret', { expiresIn: '1h' });
+        res.json({ status: 'success', message: 'Login successful', data: { token } });
+    });
+});
+
 // CRUD operations for categories
-app.post('/categories', authenticateToken, validate([
-    body('name').isString().notEmpty(),
-    body('slug').isString().notEmpty(),
-    body('media_id').optional().isInt()
-]), (req, res) => {
+app.post('/categories', authenticateToken, (req, res) => {
     const { name, slug, media_id } = req.body;
     connection.query('INSERT INTO categories (name, slug, media_id) VALUES (?, ?, ?)', [name, slug, media_id], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -72,9 +107,7 @@ app.get('/categories', (req, res) => {
     });
 });
 
-app.get('/categories/:id', validate([
-    param('id').isInt()
-]), (req, res) => {
+app.get('/categories/:id', (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM categories WHERE id = ?', [id], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -83,12 +116,7 @@ app.get('/categories/:id', validate([
     });
 });
 
-app.put('/categories/:id', authenticateToken, validate([
-    param('id').isInt(),
-    body('name').isString().notEmpty(),
-    body('slug').isString().notEmpty(),
-    body('media_id').optional().isInt()
-]), (req, res) => {
+app.put('/categories/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     const { name, slug, media_id } = req.body;
     connection.query('UPDATE categories SET name = ?, slug = ?, media_id = ? WHERE id = ?', [name, slug, media_id, id], (err) => {
@@ -97,9 +125,7 @@ app.put('/categories/:id', authenticateToken, validate([
     });
 });
 
-app.delete('/categories/:id', authenticateToken, validate([
-    param('id').isInt()
-]), (req, res) => {
+app.delete('/categories/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM categories WHERE id = ?', [id], (err) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -108,11 +134,7 @@ app.delete('/categories/:id', authenticateToken, validate([
 });
 
 // CRUD operations for chatbot_messages
-app.post('/chatbot_messages', authenticateToken, validate([
-    body('user_id').isInt(),
-    body('message').isString().notEmpty(),
-    body('response').isString().notEmpty()
-]), (req, res) => {
+app.post('/chatbot_messages', authenticateToken, (req, res) => {
     const { user_id, message, response } = req.body;
     connection.query('INSERT INTO chatbot_messages (user_id, message, response) VALUES (?, ?, ?)', [user_id, message, response], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -127,9 +149,7 @@ app.get('/chatbot_messages', authenticateToken, (req, res) => {
     });
 });
 
-app.get('/chatbot_messages/:id', authenticateToken, validate([
-    param('id').isInt()
-]), (req, res) => {
+app.get('/chatbot_messages/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM chatbot_messages WHERE id = ?', [id], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -138,12 +158,7 @@ app.get('/chatbot_messages/:id', authenticateToken, validate([
     });
 });
 
-app.put('/chatbot_messages/:id', authenticateToken, validate([
-    param('id').isInt(),
-    body('user_id').isInt(),
-    body('message').isString().notEmpty(),
-    body('response').isString().notEmpty()
-]), (req, res) => {
+app.put('/chatbot_messages/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     const { user_id, message, response } = req.body;
     connection.query('UPDATE chatbot_messages SET user_id = ?, message = ?, response = ? WHERE id = ?', [user_id, message, response, id], (err) => {
@@ -152,9 +167,7 @@ app.put('/chatbot_messages/:id', authenticateToken, validate([
     });
 });
 
-app.delete('/chatbot_messages/:id', authenticateToken, validate([
-    param('id').isInt()
-]), (req, res) => {
+app.delete('/chatbot_messages/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM chatbot_messages WHERE id = ?', [id], (err) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -163,11 +176,7 @@ app.delete('/chatbot_messages/:id', authenticateToken, validate([
 });
 
 // CRUD operations for cities
-app.post('/cities', authenticateToken, validate([
-    body('name').isString().notEmpty(),
-    body('postal_code').isString().notEmpty(),
-    body('country').isString().notEmpty()
-]), (req, res) => {
+app.post('/cities', authenticateToken, (req, res) => {
     const { name, postal_code, country } = req.body;
     connection.query('INSERT INTO cities (name, postal_code, country) VALUES (?, ?, ?)', [name, postal_code, country], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -182,9 +191,7 @@ app.get('/cities', (req, res) => {
     });
 });
 
-app.get('/cities/:id', validate([
-    param('id').isInt()
-]), (req, res) => {
+app.get('/cities/:id', (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM cities WHERE id = ?', [id], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -193,12 +200,7 @@ app.get('/cities/:id', validate([
     });
 });
 
-app.put('/cities/:id', authenticateToken, validate([
-    param('id').isInt(),
-    body('name').isString().notEmpty(),
-    body('postal_code').isString().notEmpty(),
-    body('country').isString().notEmpty()
-]), (req, res) => {
+app.put('/cities/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     const { name, postal_code, country } = req.body;
     connection.query('UPDATE cities SET name = ?, postal_code = ?, country = ? WHERE id = ?', [name, postal_code, country, id], (err) => {
@@ -207,9 +209,7 @@ app.put('/cities/:id', authenticateToken, validate([
     });
 });
 
-app.delete('/cities/:id', authenticateToken, validate([
-    param('id').isInt()
-]), (req, res) => {
+app.delete('/cities/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM cities WHERE id = ?', [id], (err) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -218,11 +218,7 @@ app.delete('/cities/:id', authenticateToken, validate([
 });
 
 // CRUD operations for comments
-app.post('/comments', authenticateToken, validate([
-    body('report_id').isInt(),
-    body('user_id').isInt(),
-    body('content').isString().notEmpty()
-]), (req, res) => {
+app.post('/comments', authenticateToken, (req, res) => {
     const { report_id, user_id, content } = req.body;
     connection.query('INSERT INTO comments (report_id, user_id, content) VALUES (?, ?, ?)', [report_id, user_id, content], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -237,9 +233,7 @@ app.get('/comments', (req, res) => {
     });
 });
 
-app.get('/comments/:id', validate([
-    param('id').isInt()
-]), (req, res) => {
+app.get('/comments/:id', (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM comments WHERE id = ?', [id], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -248,12 +242,7 @@ app.get('/comments/:id', validate([
     });
 });
 
-app.put('/comments/:id', authenticateToken, validate([
-    param('id').isInt(),
-    body('report_id').isInt(),
-    body('user_id').isInt(),
-    body('content').isString().notEmpty()
-]), (req, res) => {
+app.put('/comments/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     const { report_id, user_id, content } = req.body;
     connection.query('UPDATE comments SET report_id = ?, user_id = ?, content = ? WHERE id = ?', [report_id, user_id, content, id], (err) => {
@@ -262,9 +251,7 @@ app.put('/comments/:id', authenticateToken, validate([
     });
 });
 
-app.delete('/comments/:id', authenticateToken, validate([
-    param('id').isInt()
-]), (req, res) => {
+app.delete('/comments/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM comments WHERE id = ?', [id], (err) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -273,10 +260,7 @@ app.delete('/comments/:id', authenticateToken, validate([
 });
 
 // CRUD operations for data_exports
-app.post('/data_exports', authenticateToken, validate([
-    body('user_id').isInt(),
-    body('file_path').isString().notEmpty()
-]), (req, res) => {
+app.post('/data_exports', authenticateToken, (req, res) => {
     const { user_id, file_path } = req.body;
     connection.query('INSERT INTO data_exports (user_id, file_path) VALUES (?, ?)', [user_id, file_path], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -291,9 +275,7 @@ app.get('/data_exports', (req, res) => {
     });
 });
 
-app.get('/data_exports/:id', validate([
-    param('id').isInt()
-]), (req, res) => {
+app.get('/data_exports/:id', (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM data_exports WHERE id = ?', [id], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -302,11 +284,7 @@ app.get('/data_exports/:id', validate([
     });
 });
 
-app.put('/data_exports/:id', authenticateToken, validate([
-    param('id').isInt(),
-    body('user_id').isInt(),
-    body('file_path').isString().notEmpty()
-]), (req, res) => {
+app.put('/data_exports/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     const { user_id, file_path } = req.body;
     connection.query('UPDATE data_exports SET user_id = ?, file_path = ? WHERE id = ?', [user_id, file_path, id], (err) => {
@@ -315,9 +293,7 @@ app.put('/data_exports/:id', authenticateToken, validate([
     });
 });
 
-app.delete('/data_exports/:id', authenticateToken, validate([
-    param('id').isInt()
-]), (req, res) => {
+app.delete('/data_exports/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM data_exports WHERE id = ?', [id], (err) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -326,12 +302,7 @@ app.delete('/data_exports/:id', authenticateToken, validate([
 });
 
 // CRUD operations for deleted_reasons
-app.post('/deleted_reasons', authenticateToken, validate([
-    body('name').isString().notEmpty(),
-    body('slug').isString().notEmpty(),
-    body('long_name').isString().notEmpty(),
-    body('type').isString().notEmpty()
-]), (req, res) => {
+app.post('/deleted_reasons', authenticateToken, (req, res) => {
     const { name, slug, long_name, type } = req.body;
     connection.query('INSERT INTO deleted_reasons (name, slug, long_name, type) VALUES (?, ?, ?, ?)', [name, slug, long_name, type], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -346,9 +317,7 @@ app.get('/deleted_reasons', (req, res) => {
     });
 });
 
-app.get('/deleted_reasons/:id', validate([
-    param('id').isInt()
-]), (req, res) => {
+app.get('/deleted_reasons/:id', (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM deleted_reasons WHERE id = ?', [id], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -357,13 +326,7 @@ app.get('/deleted_reasons/:id', validate([
     });
 });
 
-app.put('/deleted_reasons/:id', authenticateToken, validate([
-    param('id').isInt(),
-    body('name').isString().notEmpty(),
-    body('slug').isString().notEmpty(),
-    body('long_name').isString().notEmpty(),
-    body('type').isString().notEmpty()
-]), (req, res) => {
+app.put('/deleted_reasons/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     const { name, slug, long_name, type } = req.body;
     connection.query('UPDATE deleted_reasons SET name = ?, slug = ?, long_name = ?, type = ? WHERE id = ?', [name, slug, long_name, type, id], (err) => {
@@ -372,9 +335,7 @@ app.put('/deleted_reasons/:id', authenticateToken, validate([
     });
 });
 
-app.delete('/deleted_reasons/:id', authenticateToken, validate([
-    param('id').isInt()
-]), (req, res) => {
+app.delete('/deleted_reasons/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM deleted_reasons WHERE id = ?', [id], (err) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -383,12 +344,7 @@ app.delete('/deleted_reasons/:id', authenticateToken, validate([
 });
 
 // CRUD operations for delete_requests
-app.post('/delete_requests', authenticateToken, validate([
-    body('user_id').isInt(),
-    body('reason').isString().notEmpty(),
-    body('status').isIn(['pending', 'processed']),
-    body('deleted_reason_id').optional().isInt()
-]), (req, res) => {
+app.post('/delete_requests', authenticateToken, (req, res) => {
     const { user_id, reason, status, deleted_reason_id } = req.body;
     connection.query('INSERT INTO delete_requests (user_id, reason, status, deleted_reason_id) VALUES (?, ?, ?, ?)', [user_id, reason, status, deleted_reason_id], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -403,9 +359,7 @@ app.get('/delete_requests', (req, res) => {
     });
 });
 
-app.get('/delete_requests/:id', validate([
-    param('id').isInt()
-]), (req, res) => {
+app.get('/delete_requests/:id', (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM delete_requests WHERE id = ?', [id], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -414,13 +368,7 @@ app.get('/delete_requests/:id', validate([
     });
 });
 
-app.put('/delete_requests/:id', authenticateToken, validate([
-    param('id').isInt(),
-    body('user_id').isInt(),
-    body('reason').isString().notEmpty(),
-    body('status').isIn(['pending', 'processed']),
-    body('deleted_reason_id').optional().isInt()
-]), (req, res) => {
+app.put('/delete_requests/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     const { user_id, reason, status, deleted_reason_id } = req.body;
     connection.query('UPDATE delete_requests SET user_id = ?, reason = ?, status = ?, deleted_reason_id = ? WHERE id = ?', [user_id, reason, status, deleted_reason_id, id], (err) => {
@@ -429,9 +377,7 @@ app.put('/delete_requests/:id', authenticateToken, validate([
     });
 });
 
-app.delete('/delete_requests/:id', authenticateToken, validate([
-    param('id').isInt()
-]), (req, res) => {
+app.delete('/delete_requests/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM delete_requests WHERE id = ?', [id], (err) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -440,9 +386,7 @@ app.delete('/delete_requests/:id', authenticateToken, validate([
 });
 
 // CRUD operations for evidence
-app.post('/evidence', authenticateToken, upload.single('file'), validate([
-    body('report_id').isInt()
-]), (req, res) => {
+app.post('/evidence', authenticateToken, upload.single('file'), (req, res) => {
     const { report_id } = req.body;
     const file_path = req.file.path;
     connection.query('INSERT INTO evidence (report_id, file_path) VALUES (?, ?)', [report_id, file_path], (err, results) => {
@@ -458,9 +402,7 @@ app.get('/evidence', (req, res) => {
     });
 });
 
-app.get('/evidence/:id', validate([
-    param('id').isInt()
-]), (req, res) => {
+app.get('/evidence/:id', (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM evidence WHERE id = ?', [id], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -469,10 +411,7 @@ app.get('/evidence/:id', validate([
     });
 });
 
-app.put('/evidence/:id', authenticateToken, upload.single('file'), validate([
-    param('id').isInt(),
-    body('report_id').isInt()
-]), (req, res) => {
+app.put('/evidence/:id', authenticateToken, upload.single('file'), (req, res) => {
     const { id } = req.params;
     const { report_id } = req.body;
     const file_path = req.file.path;
@@ -482,9 +421,7 @@ app.put('/evidence/:id', authenticateToken, upload.single('file'), validate([
     });
 });
 
-app.delete('/evidence/:id', authenticateToken, validate([
-    param('id').isInt()
-]), (req, res) => {
+app.delete('/evidence/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM evidence WHERE id = ?', [id], (err) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -493,11 +430,7 @@ app.delete('/evidence/:id', authenticateToken, validate([
 });
 
 // CRUD operations for invoices
-app.post('/invoices', authenticateToken, upload.single('file'), validate([
-    body('payment_id').isInt(),
-    body('invoice_number').isString().notEmpty(),
-    body('media_id').optional().isInt()
-]), (req, res) => {
+app.post('/invoices', authenticateToken, upload.single('file'), (req, res) => {
     const { payment_id, invoice_number, media_id } = req.body;
     const file_path = req.file.path;
     connection.query('INSERT INTO invoices (payment_id, invoice_number, file_path, media_id) VALUES (?, ?, ?, ?)', [payment_id, invoice_number, file_path, media_id], (err, results) => {
@@ -513,9 +446,7 @@ app.get('/invoices', (req, res) => {
     });
 });
 
-app.get('/invoices/:id', validate([
-    param('id').isInt()
-]), (req, res) => {
+app.get('/invoices/:id', (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM invoices WHERE id = ?', [id], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -524,12 +455,7 @@ app.get('/invoices/:id', validate([
     });
 });
 
-app.put('/invoices/:id', authenticateToken, upload.single('file'), validate([
-    param('id').isInt(),
-    body('payment_id').isInt(),
-    body('invoice_number').isString().notEmpty(),
-    body('media_id').optional().isInt()
-]), (req, res) => {
+app.put('/invoices/:id', authenticateToken, upload.single('file'), (req, res) => {
     const { id } = req.params;
     const { payment_id, invoice_number, media_id } = req.body;
     const file_path = req.file.path;
@@ -539,9 +465,7 @@ app.put('/invoices/:id', authenticateToken, upload.single('file'), validate([
     });
 });
 
-app.delete('/invoices/:id', authenticateToken, validate([
-    param('id').isInt()
-]), (req, res) => {
+app.delete('/invoices/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM invoices WHERE id = ?', [id], (err) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -550,11 +474,7 @@ app.delete('/invoices/:id', authenticateToken, validate([
 });
 
 // CRUD operations for login_history
-app.post('/login_history', authenticateToken, validate([
-    body('user_id').isInt(),
-    body('ip_address').isString().notEmpty(),
-    body('user_agent').isString().notEmpty()
-]), (req, res) => {
+app.post('/login_history', authenticateToken, (req, res) => {
     const { user_id, ip_address, user_agent } = req.body;
     connection.query('INSERT INTO login_history (user_id, ip_address, user_agent) VALUES (?, ?, ?)', [user_id, ip_address, user_agent], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -569,9 +489,7 @@ app.get('/login_history', (req, res) => {
     });
 });
 
-app.get('/login_history/:id', validate([
-    param('id').isInt()
-]), (req, res) => {
+app.get('/login_history/:id', (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM login_history WHERE id = ?', [id], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -580,12 +498,7 @@ app.get('/login_history/:id', validate([
     });
 });
 
-app.put('/login_history/:id', authenticateToken, validate([
-    param('id').isInt(),
-    body('user_id').isInt(),
-    body('ip_address').isString().notEmpty(),
-    body('user_agent').isString().notEmpty()
-]), (req, res) => {
+app.put('/login_history/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     const { user_id, ip_address, user_agent } = req.body;
     connection.query('UPDATE login_history SET user_id = ?, ip_address = ?, user_agent = ? WHERE id = ?', [user_id, ip_address, user_agent, id], (err) => {
@@ -594,9 +507,7 @@ app.put('/login_history/:id', authenticateToken, validate([
     });
 });
 
-app.delete('/login_history/:id', authenticateToken, validate([
-    param('id').isInt()
-]), (req, res) => {
+app.delete('/login_history/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM login_history WHERE id = ?', [id], (err) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -605,12 +516,7 @@ app.delete('/login_history/:id', authenticateToken, validate([
 });
 
 // CRUD operations for notifications
-app.post('/notifications', authenticateToken, validate([
-    body('user_id').isInt(),
-    body('title').isString().notEmpty(),
-    body('content').isString().notEmpty(),
-    body('is_read').isBoolean()
-]), (req, res) => {
+app.post('/notifications', authenticateToken, (req, res) => {
     const { user_id, title, message, read_status } = req.body;
     connection.query('INSERT INTO notifications (user_id, title, message, read_status) VALUES (?, ?, ?, ?)', [user_id, title, message, read_status], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -625,9 +531,7 @@ app.get('/notifications', (req, res) => {
     });
 });
 
-app.get('/notifications/:id', validate([
-    param('id').isInt()
-]), (req, res) => {
+app.get('/notifications/:id', (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM notifications WHERE id = ?', [id], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -636,13 +540,7 @@ app.get('/notifications/:id', validate([
     });
 });
 
-app.put('/notifications/:id', authenticateToken, validate([
-    param('id').isInt(),
-    body('user_id').isInt(),
-    body('title').isString().notEmpty(),
-    body('content').isString().notEmpty(),
-    body('is_read').isBoolean()
-]), (req, res) => {
+app.put('/notifications/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     const { user_id, title, message, read_status } = req.body;
     connection.query('UPDATE notifications SET user_id = ?, title = ?, message = ?, read_status = ? WHERE id = ?', [user_id, title, message, read_status, id], (err) => {
@@ -651,9 +549,7 @@ app.put('/notifications/:id', authenticateToken, validate([
     });
 });
 
-app.delete('/notifications/:id', authenticateToken, validate([
-    param('id').isInt()
-]), (req, res) => {
+app.delete('/notifications/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM notifications WHERE id = ?', [id], (err) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -662,10 +558,7 @@ app.delete('/notifications/:id', authenticateToken, validate([
 });
 
 // CRUD operations for notification_templates
-app.post('/notification_templates', authenticateToken, validate([
-    body('name').isString().notEmpty(),
-    body('content').isString().notEmpty()
-]), (req, res) => {
+app.post('/notification_templates', authenticateToken, (req, res) => {
     const { name, content } = req.body;
     connection.query('INSERT INTO notification_templates (name, content) VALUES (?, ?)', [name, content], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -680,9 +573,7 @@ app.get('/notification_templates', (req, res) => {
     });
 });
 
-app.get('/notification_templates/:id', validate([
-    param('id').isInt()
-]), (req, res) => {
+app.get('/notification_templates/:id', (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM notification_templates WHERE id = ?', [id], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -691,11 +582,7 @@ app.get('/notification_templates/:id', validate([
     });
 });
 
-app.put('/notification_templates/:id', authenticateToken, validate([
-    param('id').isInt(),
-    body('name').isString().notEmpty(),
-    body('content').isString().notEmpty()
-]), (req, res) => {
+app.put('/notification_templates/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     const { name, content } = req.body;
     connection.query('UPDATE notification_templates SET name = ?, content = ? WHERE id = ?', [name, content, id], (err) => {
@@ -704,9 +591,7 @@ app.put('/notification_templates/:id', authenticateToken, validate([
     });
 });
 
-app.delete('/notification_templates/:id', authenticateToken, validate([
-    param('id').isInt()
-]), (req, res) => {
+app.delete('/notification_templates/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM notification_templates WHERE id = ?', [id], (err) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -715,13 +600,7 @@ app.delete('/notification_templates/:id', authenticateToken, validate([
 });
 
 // CRUD operations for payments
-app.post('/payments', authenticateToken, validate([
-    body('subscription_id').isInt(),
-    body('amount').isFloat({ gt: 0 }),
-    body('payment_method').isIn(['credit_card', 'paypal', 'bank_transfer']),
-    body('transaction_id').isString().notEmpty(),
-    body('status').isIn(['success', 'failed', 'pending'])
-]), (req, res) => {
+app.post('/payments', authenticateToken, (req, res) => {
     const { user_id, amount, status } = req.body;
     connection.query('INSERT INTO payments (user_id, amount, status) VALUES (?, ?, ?)', [user_id, amount, status], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -736,9 +615,7 @@ app.get('/payments', (req, res) => {
     });
 });
 
-app.get('/payments/:id', validate([
-    param('id').isInt()
-]), (req, res) => {
+app.get('/payments/:id', (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM payments WHERE id = ?', [id], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -747,14 +624,7 @@ app.get('/payments/:id', validate([
     });
 });
 
-app.put('/payments/:id', authenticateToken, validate([
-    param('id').isInt(),
-    body('subscription_id').isInt(),
-    body('amount').isFloat({ gt: 0 }),
-    body('payment_method').isIn(['credit_card', 'paypal', 'bank_transfer']),
-    body('transaction_id').isString().notEmpty(),
-    body('status').isIn(['success', 'failed', 'pending'])
-]), (req, res) => {
+app.put('/payments/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     const { user_id, amount, status } = req.body;
     connection.query('UPDATE payments SET user_id = ?, amount = ?, status = ? WHERE id = ?', [user_id, amount, status, id], (err) => {
@@ -763,9 +633,7 @@ app.put('/payments/:id', authenticateToken, validate([
     });
 });
 
-app.delete('/payments/:id', authenticateToken, validate([
-    param('id').isInt()
-]), (req, res) => {
+app.delete('/payments/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM payments WHERE id = ?', [id], (err) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -774,13 +642,7 @@ app.delete('/payments/:id', authenticateToken, validate([
 });
 
 // CRUD operations for permissions
-app.post('/permissions', authenticateToken, validate([
-    body('role_id').isInt(),
-    body('module').isString().notEmpty(),
-    body('can_view').isBoolean(),
-    body('can_edit').isBoolean(),
-    body('can_delete').isBoolean()
-]), (req, res) => {
+app.post('/permissions', authenticateToken, (req, res) => {
     const { name, description } = req.body;
     connection.query('INSERT INTO permissions (name, description) VALUES (?, ?)', [name, description], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -795,9 +657,7 @@ app.get('/permissions', (req, res) => {
     });
 });
 
-app.get('/permissions/:id', validate([
-    param('id').isInt()
-]), (req, res) => {
+app.get('/permissions/:id', (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM permissions WHERE id = ?', [id], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -806,14 +666,7 @@ app.get('/permissions/:id', validate([
     });
 });
 
-app.put('/permissions/:id', authenticateToken, validate([
-    param('id').isInt(),
-    body('role_id').isInt(),
-    body('module').isString().notEmpty(),
-    body('can_view').isBoolean(),
-    body('can_edit').isBoolean(),
-    body('can_delete').isBoolean()
-]), (req, res) => {
+app.put('/permissions/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     const { name, description } = req.body;
     connection.query('UPDATE permissions SET name = ?, description = ? WHERE id = ?', [name, description, id], (err) => {
@@ -822,9 +675,7 @@ app.put('/permissions/:id', authenticateToken, validate([
     });
 });
 
-app.delete('/permissions/:id', authenticateToken, validate([
-    param('id').isInt()
-]), (req, res) => {
+app.delete('/permissions/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM permissions WHERE id = ?', [id], (err) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -833,11 +684,7 @@ app.delete('/permissions/:id', authenticateToken, validate([
 });
 
 // CRUD operations for plans
-app.post('/plans', authenticateToken, validate([
-    body('name').isString().notEmpty(),
-    body('price').isFloat({ gt: 0 }),
-    body('description').optional().isString()
-]), (req, res) => {
+app.post('/plans', authenticateToken, (req, res) => {
     const { name, description, price } = req.body;
     connection.query('INSERT INTO plans (name, description, price) VALUES (?, ?, ?)', [name, description, price], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -852,9 +699,7 @@ app.get('/plans', (req, res) => {
     });
 });
 
-app.get('/plans/:id', validate([
-    param('id').isInt()
-]), (req, res) => {
+app.get('/plans/:id', (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM plans WHERE id = ?', [id], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -863,12 +708,7 @@ app.get('/plans/:id', validate([
     });
 });
 
-app.put('/plans/:id', authenticateToken, validate([
-    param('id').isInt(),
-    body('name').isString().notEmpty(),
-    body('price').isFloat({ gt: 0 }),
-    body('description').optional().isString()
-]), (req, res) => {
+app.put('/plans/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     const { name, description, price } = req.body;
     connection.query('UPDATE plans SET name = ?, description = ?, price = ? WHERE id = ?', [name, description, price, id], (err) => {
@@ -877,9 +717,7 @@ app.put('/plans/:id', authenticateToken, validate([
     });
 });
 
-app.delete('/plans/:id', authenticateToken, validate([
-    param('id').isInt()
-]), (req, res) => {
+app.delete('/plans/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM plans WHERE id = ?', [id], (err) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -905,9 +743,7 @@ app.get('/media', (req, res) => {
     });
 });
 
-app.get('/media/:id', validate([
-    param('id').isInt()
-]), (req, res) => {
+app.get('/media/:id', (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM media WHERE id = ?', [id], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -916,11 +752,7 @@ app.get('/media/:id', validate([
     });
 });
 
-app.put('/media/:id', authenticateToken, validate([
-    param('id').isInt(),
-    body('file_path').isString().notEmpty(),
-    body('file_type').isString().notEmpty()
-]), (req, res) => {
+app.put('/media/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     const { file_path, file_type } = req.body;
     connection.query('UPDATE media SET file_path = ?, file_type = ? WHERE id = ?', [file_path, file_type, id], (err) => {
@@ -929,9 +761,7 @@ app.put('/media/:id', authenticateToken, validate([
     });
 });
 
-app.delete('/media/:id', authenticateToken, validate([
-    param('id').isInt()
-]), (req, res) => {
+app.delete('/media/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM media WHERE id = ?', [id], (err) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -940,15 +770,7 @@ app.delete('/media/:id', authenticateToken, validate([
 });
 
 // CRUD operations for reports
-app.post('/reports', authenticateToken, upload.single('file'), validate([
-    body('user_id').isInt(),
-    body('title').isString().notEmpty(),
-    body('description').isString().notEmpty(),
-    body('category_id').isInt(),
-    body('city_id').isInt(),
-    body('status').isIn(['pending', 'validated', 'rejected']),
-    body('media_id').optional().isInt()
-]), (req, res) => {
+app.post('/reports', authenticateToken, upload.single('file'), (req, res) => {
     const { user_id, title, description, category_id, city_id, status, media_id } = req.body;
     const file_path = req.file.path;
     connection.query('INSERT INTO reports (user_id, title, description, category_id, city_id, status, media_id, file_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [user_id, title, description, category_id, city_id, status, media_id, file_path], (err, results) => {
@@ -957,16 +779,7 @@ app.post('/reports', authenticateToken, upload.single('file'), validate([
     });
 });
 
-app.put('/reports/:id', authenticateToken, upload.single('file'), validate([
-    param('id').isInt(),
-    body('user_id').isInt(),
-    body('title').isString().notEmpty(),
-    body('description').isString().notEmpty(),
-    body('category_id').isInt(),
-    body('city_id').isInt(),
-    body('status').isIn(['pending', 'validated', 'rejected']),
-    body('media_id').optional().isInt()
-]), (req, res) => {
+app.put('/reports/:id', authenticateToken, upload.single('file'), (req, res) => {
     const { id } = req.params;
     const { user_id, title, description, category_id, city_id, status, media_id } = req.body;
     const file_path = req.file.path;
@@ -983,9 +796,7 @@ app.get('/reports', (req, res) => {
     });
 });
 
-app.get('/reports/:id', validate([
-    param('id').isInt()
-]), (req, res) => {
+app.get('/reports/:id', (req, res) => {
     const { id } = req.params;
     connection.query('SELECT * FROM reports WHERE id = ?', [id], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -994,13 +805,53 @@ app.get('/reports/:id', validate([
     });
 });
 
-app.delete('/reports/:id', authenticateToken, validate([
-    param('id').isInt()
-]), (req, res) => {
+app.delete('/reports/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM reports WHERE id = ?', [id], (err) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
         res.status(204).json({ status: 'success', message: 'Report deleted', data: null });
+    });
+});
+
+// CRUD operations for roles
+app.post('/roles', authenticateToken, (req, res) => {
+    const { name, slug } = req.body;
+    connection.query('INSERT INTO roles (name, slug) VALUES (?, ?)', [name, slug], (err, results) => {
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(201).json({ status: 'success', message: 'Role created', data: { id: results.insertId, name, slug } });
+    });
+});
+
+app.get('/roles', (req, res) => {
+    connection.query('SELECT * FROM roles', (err, results) => {
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Roles retrieved', data: results });
+    });
+});
+
+app.get('/roles/:id', (req, res) => {
+    const { id } = req.params;
+    connection.query('SELECT * FROM roles WHERE id = ?', [id], (err, results) => {
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        if (results.length === 0) return res.status(404).json({ status: 'error', message: 'Role not found', data: null });
+        res.json({ status: 'success', message: 'Role retrieved', data: results[0] });
+    });
+});
+
+app.put('/roles/:id', authenticateToken, (req, res) => {
+    const { id } = req.params;
+    const { name, slug } = req.body;
+    connection.query('UPDATE roles SET name = ?, slug = ? WHERE id = ?', [name, slug, id], (err) => {
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Role updated', data: { id, name, slug } });
+    });
+});
+
+app.delete('/roles/:id', authenticateToken, (req, res) => {
+    const { id } = req.params;
+    connection.query('DELETE FROM roles WHERE id = ?', [id], (err) => {
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(204).json({ status: 'success', message: 'Role deleted', data: null });
     });
 });
 
