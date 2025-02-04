@@ -76,7 +76,7 @@ app.post('/register', (req, res) => {
 
 // Login endpoint
 app.post('/login', (req, res) => {
-    const { email, password } = req.body;
+    const { email, password , ip_address} = req.body;
     connection.query('SELECT * FROM users WHERE email = ?', [email], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
         if (results.length === 0) return res.status(404).json({ status: 'error', message: 'User not found', data: null });
@@ -87,7 +87,24 @@ app.post('/login', (req, res) => {
         }
 
         const token = jwt.sign({ id: user.id, role: user.role_id }, 'your_jwt_secret', { expiresIn: '1h' });
-        res.json({ status: 'success', message: 'Login successful', data: { token } });
+        //print("ip addresssss",ip_address);
+        // Log login history
+        //const ip_address = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+        const user_agent = req.headers['user-agent'];
+        connection.query('INSERT INTO login_history (user_id, ip_address, user_agent) VALUES (?, ?, ?)', [user.id, ip_address, user_agent], (err) => {
+            if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+            res.json({ status: 'success', message: 'Login successful', data: { token } });
+        });
+    });
+});
+
+// Get user information from token
+app.get('/user', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+    connection.query('SELECT id, username, email, first_name, last_name, role_id, city, postal_code, address, phone_number FROM users WHERE id = ?', [userId], (err, results) => {
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        if (results.length === 0) return res.status(404).json({ status: 'error', message: 'User not found', data: null });
+        res.json({ status: 'success', message: 'User information retrieved', data: results[0] });
     });
 });
 
@@ -842,7 +859,7 @@ app.put('/roles/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     const { name, slug } = req.body;
     connection.query('UPDATE roles SET name = ?, slug = ? WHERE id = ?', [name, slug, id], (err) => {
-        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        if (err) return rres.status(500).json({ status: 'error', message: err.message, data: null });
         res.json({ status: 'success', message: 'Role updated', data: { id, name, slug } });
     });
 });
