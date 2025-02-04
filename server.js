@@ -52,6 +52,9 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+// Serve static files from the uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Register endpoint
 app.post('/register', (req, res) => {
     const { username, email, password, first_name, last_name, role_id, city, postal_code, address, phone_number } = req.body;
@@ -109,16 +112,35 @@ app.get('/user', authenticateToken, (req, res) => {
 });
 
 // CRUD operations for categories
-app.post('/categories', authenticateToken, (req, res) => {
-    const { name, slug, media_id } = req.body;
-    connection.query('INSERT INTO categories (name, slug, media_id) VALUES (?, ?, ?)', [name, slug, media_id], (err, results) => {
+app.post('/categories', upload.single('file'), (req, res) => {
+    const { name, slug } = req.body;
+    const file = req.file;
+
+    if (!file) {
+        return res.status(400).json({ status: 'error', message: 'File is required', data: null });
+    }
+
+    const filePath = `http://localhost:3000/uploads/${file.filename}`;
+    const fileType = file.mimetype;
+
+    connection.query('INSERT INTO media (file_path, file_type) VALUES (?, ?)', [filePath, fileType], (err, mediaResults) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
-        res.status(201).json({ status: 'success', message: 'Category created', data: { id: results.insertId, name, slug, media_id } });
+
+        const mediaId = mediaResults.insertId;
+        connection.query('INSERT INTO categories (name, slug, media_id) VALUES (?, ?, ?)', [name, slug, mediaId], (err, categoryResults) => {
+            if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+            res.status(201).json({ status: 'success', message: 'Category created', data: { id: categoryResults.insertId, name, slug, media_id: mediaId } });
+        });
     });
 });
 
 app.get('/categories', (req, res) => {
-    connection.query('SELECT * FROM categories', (err, results) => {
+    const query = `
+        SELECT categories.*, media.file_path, media.file_type 
+        FROM categories 
+        LEFT JOIN media ON categories.media_id = media.id
+    `;
+    connection.query(query, (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
         res.json({ status: 'success', message: 'Categories retrieved', data: results });
     });
@@ -147,6 +169,19 @@ app.delete('/categories/:id', authenticateToken, (req, res) => {
     connection.query('DELETE FROM categories WHERE id = ?', [id], (err) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
         res.status(204).json({ status: 'success', message: 'Category deleted', data: null });
+    });
+});
+
+// Get categories with media
+app.get('/categories_with_media', (req, res) => {
+    const query = `
+        SELECT categories.*, media.file_path, media.file_type 
+        FROM categories 
+        LEFT JOIN media ON categories.media_id = media.id
+    `;
+    connection.query(query, (err, results) => {
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.json({ status: 'success', message: 'Categories with media retrieved', data: results });
     });
 });
 
@@ -405,7 +440,7 @@ app.delete('/delete_requests/:id', authenticateToken, (req, res) => {
 // CRUD operations for evidence
 app.post('/evidence', authenticateToken, upload.single('file'), (req, res) => {
     const { report_id } = req.body;
-    const file_path = req.file.path;
+    const file_path = `http://localhost:3000/uploads/${req.file.filename}`;
     connection.query('INSERT INTO evidence (report_id, file_path) VALUES (?, ?)', [report_id, file_path], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
         res.status(201).json({ status: 'success', message: 'Evidence created', data: { id: results.insertId, report_id, file_path } });
@@ -431,7 +466,7 @@ app.get('/evidence/:id', (req, res) => {
 app.put('/evidence/:id', authenticateToken, upload.single('file'), (req, res) => {
     const { id } = req.params;
     const { report_id } = req.body;
-    const file_path = req.file.path;
+    const file_path = `http://localhost:3000/uploads/${req.file.filename}`;
     connection.query('UPDATE evidence SET report_id = ?, file_path = ? WHERE id = ?', [report_id, file_path, id], (err) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
         res.json({ status: 'success', message: 'Evidence updated', data: { id, report_id, file_path } });
@@ -449,7 +484,7 @@ app.delete('/evidence/:id', authenticateToken, (req, res) => {
 // CRUD operations for invoices
 app.post('/invoices', authenticateToken, upload.single('file'), (req, res) => {
     const { payment_id, invoice_number, media_id } = req.body;
-    const file_path = req.file.path;
+    const file_path = `http://localhost:3000/uploads/${req.file.filename}`;
     connection.query('INSERT INTO invoices (payment_id, invoice_number, file_path, media_id) VALUES (?, ?, ?, ?)', [payment_id, invoice_number, file_path, media_id], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
         res.status(201).json({ status: 'success', message: 'Invoice created', data: { id: results.insertId, payment_id, invoice_number, file_path, media_id } });
@@ -475,7 +510,7 @@ app.get('/invoices/:id', (req, res) => {
 app.put('/invoices/:id', authenticateToken, upload.single('file'), (req, res) => {
     const { id } = req.params;
     const { payment_id, invoice_number, media_id } = req.body;
-    const file_path = req.file.path;
+    const file_path = `http://localhost:3000/uploads/${req.file.filename}`;
     connection.query('UPDATE invoices SET payment_id = ?, invoice_number = ?, file_path = ?, media_id = ? WHERE id = ?', [payment_id, invoice_number, file_path, media_id, id], (err) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
         res.json({ status: 'success', message: 'Invoice updated', data: { id, payment_id, invoice_number, file_path, media_id } });
@@ -745,7 +780,7 @@ app.delete('/plans/:id', authenticateToken, (req, res) => {
 // CRUD operations for media
 app.post('/media', authenticateToken, upload.single('file'), (req, res) => {
     const { file } = req;
-    const filePath = file.path;
+    const filePath = `http://localhost:3000/uploads/${file.filename}`;
     const fileType = file.mimetype;
     connection.query('INSERT INTO media (file_path, file_type) VALUES (?, ?)', [filePath, fileType], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -789,7 +824,7 @@ app.delete('/media/:id', authenticateToken, (req, res) => {
 // CRUD operations for reports
 app.post('/reports', authenticateToken, upload.single('file'), (req, res) => {
     const { user_id, title, description, category_id, city_id, status, media_id } = req.body;
-    const file_path = req.file.path;
+    const file_path = `http://localhost:3000/uploads/${req.file.filename}`;
     connection.query('INSERT INTO reports (user_id, title, description, category_id, city_id, status, media_id, file_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [user_id, title, description, category_id, city_id, status, media_id, file_path], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
         res.status(201).json({ status: 'success', message: 'Report created', data: { id: results.insertId, user_id, title, description, category_id, city_id, status, media_id, file_path } });
@@ -799,7 +834,7 @@ app.post('/reports', authenticateToken, upload.single('file'), (req, res) => {
 app.put('/reports/:id', authenticateToken, upload.single('file'), (req, res) => {
     const { id } = req.params;
     const { user_id, title, description, category_id, city_id, status, media_id } = req.body;
-    const file_path = req.file.path;
+    const file_path = `http://localhost:3000/uploads/${req.file.filename}`;
     connection.query('UPDATE reports SET user_id = ?, title = ?, description = ?, category_id = ?, city_id = ?, status = ?, media_id = ?, file_path = ? WHERE id = ?', [user_id, title, description, category_id, city_id, status, media_id, file_path, id], (err) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
         res.json({ status: 'success', message: 'Report updated', data: { id, user_id, title, description, category_id, city_id, status, media_id, file_path } });
