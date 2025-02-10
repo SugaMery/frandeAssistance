@@ -14,7 +14,8 @@ app.use(express.json());
 
 // Middleware for authentication
 const authenticateToken = (req, res, next) => {
-    const token = req.headers['authorization'];
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
     if (!token) return res.sendStatus(401);
 
     jwt.verify(token, 'your_jwt_secret', (err, user) => {
@@ -105,6 +106,16 @@ app.post('/login', (req, res) => {
 app.get('/user', authenticateToken, (req, res) => {
     const userId = req.user.id;
     connection.query('SELECT id, username, email, first_name, last_name, role_id, city, postal_code, address, phone_number FROM users WHERE id = ?', [userId], (err, results) => {
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        if (results.length === 0) return res.status(404).json({ status: 'error', message: 'User not found', data: null });
+        res.json({ status: 'success', message: 'User information retrieved', data: results[0] });
+    });
+});
+
+// Get user information from token
+app.get('/user-info', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+    connection.query('SELECT first_name, last_name, email FROM users WHERE id = ?', [userId], (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
         if (results.length === 0) return res.status(404).json({ status: 'error', message: 'User not found', data: null });
         res.json({ status: 'success', message: 'User information retrieved', data: results[0] });
@@ -788,6 +799,19 @@ app.post('/media', authenticateToken, upload.single('file'), (req, res) => {
     });
 });
 
+
+
+app.post('/media/report', authenticateToken, upload.single('file'), (req, res) => {
+    const { report_id } = req.body;
+    const { file } = req;
+    const filePath = `http://localhost:3000/uploads/${file.filename}`;
+    const fileType = file.mimetype;
+    connection.query('INSERT INTO media (file_path, file_type, report_id) VALUES (?, ?, ?)', [filePath, fileType, report_id], (err, results) => {
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        res.status(201).json({ status: 'success', message: 'Media created for report', data: { id: results.insertId, file_path: filePath, file_type: fileType, report_id } });
+    });
+});
+
 app.get('/media', (req, res) => {
     connection.query('SELECT * FROM media', (err, results) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
@@ -822,12 +846,47 @@ app.delete('/media/:id', authenticateToken, (req, res) => {
 });
 
 // CRUD operations for reports
-app.post('/reports', authenticateToken, upload.single('file'), (req, res) => {
-    const { user_id, title, description, category_id, city_id, status, media_id } = req.body;
-    const file_path = `http://localhost:3000/uploads/${req.file.filename}`;
-    connection.query('INSERT INTO reports (user_id, title, description, category_id, city_id, status, media_id, file_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [user_id, title, description, category_id, city_id, status, media_id, file_path], (err, results) => {
-        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
-        res.status(201).json({ status: 'success', message: 'Report created', data: { id: results.insertId, user_id, title, description, category_id, city_id, status, media_id, file_path } });
+app.post('/reports', authenticateToken, upload.array('files', 4), (req, res) => {
+    const { user_id, title, description, category_id, city_id } = req.body;
+    console.log('Received request to create report', req.body);
+
+    const status = 'pending'; // Set default status to 'pending'
+    const files = req.files || []; // Ensure files is an array
+
+    connection.query('INSERT INTO reports (user_id, title, description, category_id, city_id, status) VALUES (?, ?, ?, ?, ?, ?)', [user_id, title, description, category_id, city_id, status], (err, results) => {
+        if (err) {
+            console.error('Error inserting report:', err);
+            return res.status(500).json({ status: 'error', message: err.message, data: null });
+        }
+
+        console.log('Report inserted successfully', results.insertId);
+        const reportId = results.insertId; // Get the inserted report ID
+        const mediaQueries = files.map(file => {
+            const filePath = `http://localhost:3000/uploads/${file.filename}`;
+            const fileType = file.mimetype;
+            console.log('file file', file);
+
+            return new Promise((resolve, reject) => {
+                connection.query('INSERT INTO media (file_path, file_type, report_id) VALUES (?, ?, ?)', [filePath, fileType, reportId], (err, mediaResults) => {
+                    if (err) {
+                        console.error('Error inserting media:', err);
+                        return reject(err);
+                    }
+                    console.log('Media inserted successfully');
+                    resolve(mediaResults);
+                });
+            });
+        });
+
+        Promise.all(mediaQueries)
+            .then(() => {
+                console.log('All media inserted successfully');
+                res.status(201).json({ status: 'success', message: 'Report created with media', data: { id: reportId, user_id, title, description, category_id, city_id, status } });
+            })
+            .catch(err => {
+                console.error('Error inserting media:', err);
+                res.status(500).json({ status: 'error', message: err.message, data: null });
+            });
     });
 });
 
