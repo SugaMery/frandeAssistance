@@ -862,6 +862,7 @@ app.post('/reports', authenticateToken, upload.array('files', 4), (req, res) => 
         console.log('Report inserted successfully', results.insertId);
         const reportId = results.insertId; // Get the inserted report ID
         const mediaQueries = files.map(file => {
+            console.log('file file', file);
             const filePath = `http://localhost:3000/uploads/${file.filename}`;
             const fileType = file.mimetype;
             console.log('file file', file);
@@ -901,9 +902,45 @@ app.put('/reports/:id', authenticateToken, upload.single('file'), (req, res) => 
 });
 
 app.get('/reports', (req, res) => {
-    connection.query('SELECT * FROM reports', (err, results) => {
+    const query = `
+        SELECT reports.*, 
+               users.username, users.email, users.first_name, users.last_name,
+               categories.name AS category_name, categories.slug AS category_slug,
+               category_media.file_path AS category_image_path, category_media.file_type AS category_image_type
+        FROM reports
+        LEFT JOIN users ON reports.user_id = users.id
+        LEFT JOIN categories ON reports.category_id = categories.id
+        LEFT JOIN media AS category_media ON categories.media_id = category_media.id
+    `;
+    connection.query(query, (err, reports) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
-        res.json({ status: 'success', message: 'Reports retrieved', data: results });
+
+        const reportIds = reports.map(report => report.id);
+        if (reportIds.length === 0) {
+            return res.json({ status: 'success', message: 'Reports retrieved', data: [] });
+        }
+
+        const mediaQuery = `
+            SELECT * FROM media WHERE report_id IN (?)
+        `;
+        connection.query(mediaQuery, [reportIds], (err, media) => {
+            if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+
+            const mediaByReportId = media.reduce((acc, item) => {
+                if (!acc[item.report_id]) {
+                    acc[item.report_id] = [];
+                }
+                acc[item.report_id].push(item);
+                return acc;
+            }, {});
+
+            const reportsWithMedia = reports.map(report => ({
+                ...report,
+                media: mediaByReportId[report.id] || []
+            }));
+
+            res.json({ status: 'success', message: 'Reports retrieved', data: reportsWithMedia });
+        });
     });
 });
 
