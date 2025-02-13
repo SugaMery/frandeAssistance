@@ -283,9 +283,29 @@ app.delete('/cities/:id', authenticateToken, (req, res) => {
 // CRUD operations for comments
 app.post('/comments', (req, res) => {
     const { report_id, nom, email, content } = req.body;
-    connection.query('INSERT INTO comments (report_id, nom, email, content) VALUES (?, ?, ?, ?)', [report_id, nom, email, content], (err, results) => {
-        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
-        res.status(201).json({ status: 'success', message: 'Comment created', data: { id: results.insertId, report_id, nom, email, content } });
+    console.log("Received request to create comment");
+    console.log("report_id:", report_id);
+    console.log("nom:", nom);
+    console.log("email:", email);
+    console.log("content:", content);
+
+    connection.query('SELECT * FROM reports WHERE id = ?', [report_id], (err, results) => {
+        if (err) {
+            console.error("Error checking report_id:", err);
+            return res.status(500).json({ status: 'error', message: err.message, data: null });
+        }
+        if (results.length === 0) {
+            return res.status(400).json({ status: 'error', message: 'Invalid report_id', data: null });
+        }
+
+        connection.query('INSERT INTO comments (report_id, nom, email, content) VALUES (?, ?, ?, ?)', [report_id, nom, email, content], (err, results) => {
+            if (err) {
+                console.error("Error inserting comment:", err);
+                return res.status(500).json({ status: 'error', message: err.message, data: null });
+            }
+            console.log("Comment inserted successfully with ID:", results.insertId);
+            res.status(201).json({ status: 'success', message: 'Comment created', data: { id: results.insertId, report_id, nom, email, content } });
+        });
     });
 });
 
@@ -302,6 +322,15 @@ app.get('/comments/:id', (req, res) => {
         if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
         if (results.length === 0) return res.status(404).json({ status: 'error', message: 'Comment not found', data: null });
         res.json({ status: 'success', message: 'Comment retrieved', data: results[0] });
+    });
+});
+
+app.get('/comments/report/:id', (req, res) => {
+    const { id } = req.params;
+    connection.query('SELECT * FROM comments WHERE report_id = ?', [id], (err, results) => {
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+        if (results.length === 0) return res.status(404).json({ status: 'error', message: 'Comments not found', data: null });
+        res.json({ status: 'success', message: 'Comments retrieved', data: results });
     });
 });
 
@@ -970,6 +999,50 @@ app.get('/reports/:id', (req, res) => {
 
             report.media = media;
             res.json({ status: 'success', message: 'Report retrieved', data: report });
+        });
+    });
+});
+app.get('/reports/category/:categoryId', (req, res) => {
+    const { categoryId } = req.params;
+    const query = `
+        SELECT reports.*, 
+               users.username, users.email, users.first_name, users.last_name,
+               categories.name AS category_name, categories.slug AS category_slug,
+               category_media.file_path AS category_image_path, category_media.file_type AS category_image_type
+        FROM reports
+        LEFT JOIN users ON reports.user_id = users.id
+        LEFT JOIN categories ON reports.category_id = categories.id
+        LEFT JOIN media AS category_media ON categories.media_id = category_media.id
+        WHERE reports.category_id = ?
+    `;
+    connection.query(query, [categoryId], (err, reports) => {
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+
+        const reportIds = reports.map(report => report.id);
+        if (reportIds.length === 0) {
+            return res.json({ status: 'success', message: 'Reports retrieved', data: [] });
+        }
+
+        const mediaQuery = `
+            SELECT * FROM media WHERE report_id IN (?)
+        `;
+        connection.query(mediaQuery, [reportIds], (err, media) => {
+            if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+
+            const mediaByReportId = media.reduce((acc, item) => {
+                if (!acc[item.report_id]) {
+                    acc[item.report_id] = [];
+                }
+                acc[item.report_id].push(item);
+                return acc;
+            }, {});
+
+            const reportsWithMedia = reports.map(report => ({
+                ...report,
+                media: mediaByReportId[report.id] || []
+            }));
+
+            res.json({ status: 'success', message: 'Reports retrieved', data: reportsWithMedia });
         });
     });
 });
