@@ -1047,6 +1047,98 @@ app.get('/reports/category/:categoryId', (req, res) => {
     });
 });
 
+app.get('/reports/search/:searchWord', (req, res) => {
+    const { searchWord } = req.params;
+    const query = `
+        SELECT reports.*, 
+               users.username, users.email, users.first_name, users.last_name,
+               categories.name AS category_name, categories.slug AS category_slug,
+               category_media.file_path AS category_image_path, category_media.file_type AS category_image_type
+        FROM reports
+        LEFT JOIN users ON reports.user_id = users.id
+        LEFT JOIN categories ON reports.category_id = categories.id
+        LEFT JOIN media AS category_media ON categories.media_id = category_media.id
+        WHERE reports.title LIKE ? OR reports.description LIKE ?
+    `;
+    const searchPattern = `%${searchWord}%`;
+    connection.query(query, [searchPattern, searchPattern], (err, reports) => {
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+
+        const reportIds = reports.map(report => report.id);
+        if (reportIds.length === 0) {
+            return res.json({ status: 'success', message: 'Reports retrieved', data: [] });
+        }
+
+        const mediaQuery = `
+            SELECT * FROM media WHERE report_id IN (?)
+        `;
+        connection.query(mediaQuery, [reportIds], (err, media) => {
+            if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+
+            const mediaByReportId = media.reduce((acc, item) => {
+                if (!acc[item.report_id]) {
+                    acc[item.report_id] = [];
+                }
+                acc[item.report_id].push(item);
+                return acc;
+            }, {});
+
+            const reportsWithMedia = reports.map(report => ({
+                ...report,
+                media: mediaByReportId[report.id] || []
+            }));
+
+            res.json({ status: 'success', message: 'Reports retrieved', data: reportsWithMedia });
+        });
+    });
+});
+
+app.get('/reports/search/:categoryId/:searchWord', (req, res) => {
+    const { categoryId, searchWord } = req.params;
+    const query = `
+        SELECT reports.*, 
+               users.username, users.email, users.first_name, users.last_name,
+               categories.name AS category_name, categories.slug AS category_slug,
+               category_media.file_path AS category_image_path, category_media.file_type AS category_image_type
+        FROM reports
+        LEFT JOIN users ON reports.user_id = users.id
+        LEFT JOIN categories ON reports.category_id = categories.id
+        LEFT JOIN media AS category_media ON categories.media_id = category_media.id
+        WHERE reports.category_id = ? AND (reports.title LIKE ? OR reports.description LIKE ?)
+    `;
+    const searchPattern = `%${searchWord}%`;
+    connection.query(query, [categoryId, searchPattern, searchPattern], (err, reports) => {
+        if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+
+        const reportIds = reports.map(report => report.id);
+        if (reportIds.length === 0) {
+            return res.json({ status: 'success', message: 'Reports retrieved', data: [] });
+        }
+
+        const mediaQuery = `
+            SELECT * FROM media WHERE report_id IN (?)
+        `;
+        connection.query(mediaQuery, [reportIds], (err, media) => {
+            if (err) return res.status(500).json({ status: 'error', message: err.message, data: null });
+
+            const mediaByReportId = media.reduce((acc, item) => {
+                if (!acc[item.report_id]) {
+                    acc[item.report_id] = [];
+                }
+                acc[item.report_id].push(item);
+                return acc;
+            }, {});
+
+            const reportsWithMedia = reports.map(report => ({
+                ...report,
+                media: mediaByReportId[report.id] || []
+            }));
+
+            res.json({ status: 'success', message: 'Reports retrieved', data: reportsWithMedia });
+        });
+    });
+});
+
 app.delete('/reports/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     connection.query('DELETE FROM reports WHERE id = ?', [id], (err) => {
